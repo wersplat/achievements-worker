@@ -15,8 +15,17 @@ export function createPool(): Pool {
   // Disable SSL certificate verification for Railway + Supabase
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-  // Parse connection string and add SSL parameters
+  // Try direct connection first (not pooling)
   const connectionUrl = new URL(env.SUPABASE_DB_URL);
+  
+  // Remove pooling parameters if present
+  if (connectionUrl.hostname.includes('pooler')) {
+    // Convert pooling URL to direct connection
+    const projectRef = connectionUrl.hostname.split('.')[0];
+    connectionUrl.hostname = `db.${projectRef}.supabase.co`;
+    connectionUrl.port = '5432';
+  }
+  
   connectionUrl.searchParams.set('sslmode', 'require');
   connectionUrl.searchParams.set('sslcert', '');
   connectionUrl.searchParams.set('sslkey', '');
