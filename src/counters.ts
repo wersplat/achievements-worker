@@ -1,7 +1,7 @@
 import { query } from './db.js';
 import { getLogger } from './logger.js';
 
-export interface PerGameStats {
+export interface PerGameStats extends Record<string, unknown> {
   points: number;
   ast: number;
   reb: number;
@@ -17,7 +17,7 @@ export interface PerGameStats {
   fta: number;
 }
 
-export interface PlayerCounters {
+export interface PlayerCounters extends Record<string, unknown> {
   player_id: number;
   scope: 'career' | 'season';
   season_id?: number;
@@ -256,8 +256,8 @@ export async function fetchPlayerCounters(
   playerId: number,
   seasonId?: number
 ): Promise<{
-  career?: PlayerCounters;
-  season?: PlayerCounters;
+  career: PlayerCounters | undefined;
+  season: PlayerCounters | undefined;
 }> {
   const logger = getLogger();
   
@@ -290,7 +290,10 @@ export async function fetchPlayerCounters(
       foundSeason: !!season,
     }, 'Fetched player counters');
     
-    return { career, season };
+    return { 
+      career: career || undefined, 
+      season: season || undefined 
+    };
   } catch (error) {
     logger.error({
       error: error instanceof Error ? error.message : String(error),

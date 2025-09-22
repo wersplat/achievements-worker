@@ -7,19 +7,19 @@ export interface PlayerAward {
   id: number;
   rule_id: number;
   player_id: number;
-  scope_key?: string;
+  scope_key?: string | undefined;
   level: number;
   title: string;
   tier: string;
-  game_year?: number;
-  league_id?: number;
-  season_id?: number;
-  match_id?: number;
+  game_year?: number | undefined;
+  league_id?: number | undefined;
+  season_id?: number | undefined;
+  match_id?: number | undefined;
   awarded_at: string;
   stats: Record<string, unknown>;
   issuer: string;
   version: string;
-  asset_svg_url?: string;
+  asset_svg_url?: string | undefined;
   created_at: string;
   updated_at: string;
 }
@@ -27,14 +27,14 @@ export interface PlayerAward {
 export interface AwardInsertData {
   rule_id: number;
   player_id: number;
-  scope_key?: string;
+  scope_key?: string | undefined;
   level: number;
   title: string;
   tier: string;
-  game_year?: number;
-  league_id?: number;
-  season_id?: number;
-  match_id?: number;
+  game_year?: number | undefined;
+  league_id?: number | undefined;
+  season_id?: number | undefined;
+  match_id?: number | undefined;
   stats: Record<string, unknown>;
 }
 

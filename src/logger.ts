@@ -10,18 +10,10 @@ export function createLogger(): pino.Logger {
 
   const env = getEnv();
   
-  logger = pino({
+  const loggerOptions: any = {
     level: env.NODE_ENV === 'development' ? 'debug' : 'info',
-    transport: env.NODE_ENV === 'development' ? {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        translateTime: 'HH:MM:ss Z',
-        ignore: 'pid,hostname',
-      },
-    } : undefined,
     formatters: {
-      level: (label) => {
+      level: (label: string) => {
         return { level: label };
       },
     },
@@ -30,7 +22,20 @@ export function createLogger(): pino.Logger {
       service: 'achievements-worker',
       version: '1.0.0',
     },
-  });
+  };
+
+  if (env.NODE_ENV === 'development') {
+    loggerOptions.transport = {
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        translateTime: 'HH:MM:ss Z',
+        ignore: 'pid,hostname',
+      },
+    };
+  }
+
+  logger = pino(loggerOptions);
 
   return logger;
 }

@@ -44,7 +44,7 @@ export interface BadgeTemplate {
 
 export interface BadgeData {
   award: Partial<PlayerAward>;
-  template?: BadgeTemplate;
+  template?: BadgeTemplate | undefined;
 }
 
 const DEFAULT_TEMPLATE: BadgeTemplate = {
@@ -176,7 +176,7 @@ export async function generateAndUploadBadge(
   
   try {
     // Render the SVG
-    const svg = renderBadgeSVG({ award, template });
+    const svg = renderBadgeSVG({ award, template: template || DEFAULT_TEMPLATE });
     
     // Upload to R2
     const publicUrl = await uploadSVGToR2(key, svg);
