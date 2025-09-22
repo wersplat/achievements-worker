@@ -12,8 +12,15 @@ export function createPool(): Pool {
   const env = getEnv();
   const logger = getLogger();
 
+  // Parse connection string and add SSL parameters
+  const connectionUrl = new URL(env.SUPABASE_DB_URL);
+  connectionUrl.searchParams.set('sslmode', 'require');
+  connectionUrl.searchParams.set('sslcert', '');
+  connectionUrl.searchParams.set('sslkey', '');
+  connectionUrl.searchParams.set('sslrootcert', '');
+
   pool = new Pool({
-    connectionString: env.SUPABASE_DB_URL,
+    connectionString: connectionUrl.toString(),
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
