@@ -18,6 +18,19 @@ export function createPool(): Pool {
   // Use the original connection string as-is
   const connectionUrl = new URL(env.SUPABASE_DB_URL);
   
+  // Fix SASL authentication issues by converting pooling URL to direct connection
+  if (connectionUrl.hostname.includes('pooler')) {
+    logger.info('Converting pooling URL to direct connection to fix SASL authentication');
+    // Convert pooling URL to direct connection
+    // e.g., aws-0-us-east-1.pooler.supabase.com -> db.PROJECT_REF.supabase.co
+    const projectRef = connectionUrl.username.split('.')[1]; // Extract project ref from username
+    if (projectRef) {
+      connectionUrl.hostname = `db.${projectRef}.supabase.co`;
+      connectionUrl.port = '5432';
+      logger.info(`Converted to direct connection: ${connectionUrl.hostname}:${connectionUrl.port}`);
+    }
+  }
+  
   connectionUrl.searchParams.set('sslmode', 'require');
   connectionUrl.searchParams.set('sslcert', '');
   connectionUrl.searchParams.set('sslkey', '');

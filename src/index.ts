@@ -98,8 +98,8 @@ async function main(): Promise<void> {
     await processingLoop;
     
   } catch (error) {
-    const logger = getLogger();
-    logger.fatal({ error: error instanceof Error ? error.message : String(error) }, 'Failed to start worker');
+    // Fallback to console if logger not initialized
+    console.error('Failed to start worker:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 }
