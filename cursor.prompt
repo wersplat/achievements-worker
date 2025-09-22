@@ -1,0 +1,181 @@
+Here’s a copy-paste Cursor prompt to scaffold a production-ready achievements-worker on Railway that consumes Supabase event_queue, updates counters, evaluates rules (JsonLogic-lite), and writes badge SVGs to Cloudflare R2. It includes retries, backoff, healthcheck, and clean env typing.
+
+⸻
+
+Cursor Prompt:
+
+Project: achievements-worker (Node + TypeScript)
+
+Goal: Build a long-running worker service for Railway that:
+	•	Connects directly to Supabase Postgres (service role via PG connection string).
+	•	Consumes public.event_queue with FOR UPDATE SKIP LOCKED in batches.
+	•	For each player_stat_event from public.events, updates public.player_counters (career + season) via MERGE.
+	•	Prefilters public.achievement_rules by scope/year/league/season, then evaluates a tiny JsonLogic-style predicate language against a context object { per_game, season, career }.
+	•	Idempotently inserts into public.player_awards (unique (player_id, rule_id, scope_key, level)), and writes a minimal SVG to Cloudflare R2, saving asset_svg_url.
+	•	Implements exponential backoff retries in public.event_queue (attempts, visible_at, last_error), with a cap to status='error'.
+	•	Exposes GET /healthz for Railway health checks.
+	•	Ships with typed env parsing (zod), structured logging, graceful shutdown.
+
+Assumptions (schema already created):
+	•	Enums: achievement_event_type, queue_status, counter_scope, achievement_scope, achievement_tier.
+	•	Tables: public.events, public.event_queue, public.player_counters, public.achievement_rules, public.player_awards.
+
+Tech choices:
+	•	Runtime: Node 20, TypeScript.
+	•	DB: pg (node-postgres).
+	•	Env typing: zod.
+	•	Logging: pino.
+	•	HTTP: fastify for /healthz.
+	•	R2: @aws-sdk/client-s3 (S3-compatible, no PNG render yet—SVG only).
+
+Environment variables (typed, with .env.example):
+
+NODE_ENV=production
+PORT=8080
+# Supabase Postgres direct connection:
+SUPABASE_DB_URL=postgresql://postgres:password@host:5432/postgres?sslmode=require
+# Cloudflare R2 (S3-compatible):
+R2_ACCOUNT_ID=xxxxxxxxxxxxxxxxxxxx
+R2_ACCESS_KEY_ID=xxxxxxxxxxxxxxxxxxxx
+R2_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxx
+R2_BUCKET=badges
+R2_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
+R2_PUBLIC_BASE_URL=https://cdn.example.com/badges  # your public edge URL mapped to this bucket/path
+# Worker tuning:
+BATCH_SIZE=50
+POLL_INTERVAL_MS=1000
+MAX_ATTEMPTS=10
+
+File tree (create all files with content):
+
+achievements-worker/
+├─ package.json
+├─ tsconfig.json
+├─ .gitignore
+├─ .env.example
+├─ Dockerfile
+├─ src/
+│  ├─ index.ts
+│  ├─ env.ts
+│  ├─ logger.ts
+│  ├─ db.ts
+│  ├─ queue.ts
+│  ├─ counters.ts
+│  ├─ rules.ts
+│  ├─ awards.ts
+│  ├─ svg.ts
+│  └─ util.ts
+
+package.json:
+	•	scripts: dev (ts-node), start (node dist), build (tsc).
+	•	deps: pg, zod, fastify, pino, @aws-sdk/client-s3, uuid.
+	•	devDeps: typescript, ts-node, @types/node.
+
+Key behaviors to implement:
+	1.	Queue claim (transactional):
+
+with cte as (
+  select id
+  from public.event_queue
+  where status = 'queued' and visible_at <= now()
+  order by id
+  limit $1
+  for update skip locked
+)
+update public.event_queue q
+  set status = 'processing', updated_at = now()
+  from cte
+  where q.id = cte.id
+  returning q.id, q.event_id;
+
+
+	2.	Load events by returned event_id, join to get all columns from public.events.
+	3.	Per event:
+	•	If event_type='player_stat_event':
+	•	Build per_game from events.payload (e.g., points, ast, reb, stl, blk, tov, minutes, fgm/fga, tpm/tpa, ftm/fta).
+	•	Compute deltas and run two MERGE queries into public.player_counters: one for (player_id,'career',NULL), one for (player_id,'season',season_id). Update totals and flags like has_50pt_game, has_triple_double if your code detects them.
+	•	After upserts, fetch current season and career counters for that player.
+	•	Prefilter candidate rules:
+
+select *
+from public.achievement_rules
+where is_active
+  and scope in ('per_game','season','career')
+  and (game_year is null or game_year = $1)
+  and (league_id is null or league_id = $2)
+  and (season_id is null or season_id = $3);
+
+
+	•	Evaluate predicates via a minimal JsonLogic interpreter in code with a context:
+
+const ctx = { per_game, season, career };
+// support ops: >=, >, <=, <, ==, !=, and, or, not, +, -, *, /, has
+// Example: {">=":["per_game.points",50]}
+
+
+	•	For each passing rule:
+	•	Determine scope_key: match_id for per_game, season_id for season, null for career.
+	•	Determine level (usually 1 unless your rule template encodes tiers).
+	•	Idempotent insert:
+
+insert into public.player_awards(
+  rule_id, player_id, scope_key, level,
+  title, tier, game_year, league_id, season_id, match_id,
+  awarded_at, stats, issuer, version
+) values (
+  $1,$2,$3,$4,
+  $5,$6,$7,$8,$9,$10,
+  now(),$11,'BodegaCatsGC','1.0'
+)
+on conflict (player_id, rule_id, scope_key, level) do nothing
+returning id;
+
+
+	•	If inserted, render SVG with <metadata> containing the same JSON payload (stringified canonical keys), write to R2 at badges/{player_id}/{award_id}.svg, make it public, and update public.player_awards set asset_svg_url=$url where id=$award_id.
+
+	•	If event_type='match_event': ok to no-op for now (future: team awards).
+
+	4.	Finish each queue row:
+	•	On success → status='done'.
+	•	On failure → increment attempts, set last_error, set visible_at = now() + interval '1 minute' * power(2, least(attempts,7)), and if attempts >= MAX_ATTEMPTS, set status='error'.
+	5.	Loop forever with POLL_INTERVAL_MS between cycles when no work.
+	6.	/healthz returns JSON { status:"ok", queueLag: <count of queued items>, time: new Date().toISOString() }.
+
+Implementations to include (code, not stubs):
+	•	src/env.ts: zod schema that parses/validates all env vars.
+	•	src/logger.ts: pino instance with pretty in dev.
+	•	src/db.ts: pg.Pool singleton, helpers tx<T>(fn) to run a transaction, and query helpers.
+	•	src/queue.ts: functions claimBatch, markDone, markRetry (with backoff), loadEvents.
+	•	src/counters.ts: two merge SQL statements (career/season) with parameter arrays; helper to fetch counters for a player.
+	•	src/rules.ts: fetchCandidateRules, evalPredicate(json, ctx) supporting ops: >=,>,<=,<,==,!=,and,or,not,+,-,*,/,has. Implement a path resolver like get(ctx,"season.pts_total").
+	•	src/svg.ts: renderBadgeSVG({award, template}) returning a string SVG with <title>, <desc>, and <metadata> embedding JSON payload; uploadSVGToR2(key, svg) → returns public URL using R2_PUBLIC_BASE_URL.
+	•	src/awards.ts: insertAward(...) (idempotent insert) and attachAssetUrl(awardId,url).
+	•	src/index.ts: fastify server + main loop: while (true) { claimBatch(); process; sleep(POLL_INTERVAL_MS); } with graceful SIGINT/SIGTERM.
+	•	src/util.ts: sleep(ms), canonicalJson(obj) (stable key sort), nowIso().
+
+SQL strings should use $1,$2,... placeholders; never inline values.
+
+Dockerfile:
+	•	Use node:20-alpine, install production deps, copy dist, expose ${PORT}, run node dist/index.js.
+
+Definition of Done:
+	•	pnpm build && pnpm start runs locally (with .env) and polls the DB.
+	•	On inserting a player_stat_event of 52 points, the worker:
+	•	marks queue rows processing → done,
+	•	upserts counters,
+	•	inserts a player_awards row for the “50 Bomb” seed rule (if present),
+	•	writes badges/{player}/{award}.svg to R2,
+	•	updates asset_svg_url,
+	•	logs structured messages per step.
+	•	GET /healthz returns 200 with queueLag.
+
+Style:
+	•	Strong typing for rule rows, events, counters.
+	•	Small modules, no god files.
+	•	Clear error boundaries and logs on DB/R2 ops.
+
+Generate all files with complete code so I can run pnpm i && pnpm build && pnpm start and it processes events immediately.
+
+⸻
+
+When Cursor spits this out, skim src/rules.ts to ensure the predicate ops match how you want to author rules. Next iteration we can add PNG rendering and Legendary (Crossmint) gating.
