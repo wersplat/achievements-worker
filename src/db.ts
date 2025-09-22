@@ -15,29 +15,12 @@ export function createPool(): Pool {
   // Disable SSL certificate verification for Railway + Supabase
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-  // Use the original connection string as-is
-  const connectionUrl = new URL(env.SUPABASE_DB_URL);
+  // Use the connection string exactly as provided in environment
+  const connectionString = env.SUPABASE_DB_URL;
+  logger.info(`Using connection string: ${connectionString.replace(/:[^:@]*@/, ':****@')}`); // Hide password
   
-  // Fix SASL authentication issues by converting pooling URL to direct connection
-  if (connectionUrl.hostname.includes('pooler')) {
-    logger.info('Converting pooling URL to direct connection to fix SASL authentication');
-    // Convert pooling URL to direct connection
-    // e.g., aws-0-us-east-1.pooler.supabase.com -> db.PROJECT_REF.supabase.co
-    const projectRef = connectionUrl.username.split('.')[1]; // Extract project ref from username
-    if (projectRef) {
-      connectionUrl.hostname = `db.${projectRef}.supabase.co`;
-      connectionUrl.port = '5432';
-      logger.info(`Converted to direct connection: ${connectionUrl.hostname}:${connectionUrl.port}`);
-    }
-  }
-  
-  connectionUrl.searchParams.set('sslmode', 'require');
-  connectionUrl.searchParams.set('sslcert', '');
-  connectionUrl.searchParams.set('sslkey', '');
-  connectionUrl.searchParams.set('sslrootcert', '');
-
   pool = new Pool({
-    connectionString: connectionUrl.toString(),
+    connectionString: connectionString,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
