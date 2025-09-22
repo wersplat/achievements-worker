@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { loadEnv, getEnv } from './env.js';
 import { createLogger, getLogger } from './logger.js';
-import { createSupabaseClient, closeSupabaseClient } from './db.js';
+import { createPool, closePool } from './db.js';
 import { createS3Client } from './svg.js';
 import { claimBatch, loadEvents, markDone, markRetry, getQueueLag, EventData } from './queue.js';
 import { updateCareerCounters, updateSeasonCounters, fetchPlayerCounters, PerGameStats } from './counters.js';
@@ -29,9 +29,9 @@ async function main(): Promise<void> {
       maxAttempts: env.MAX_ATTEMPTS,
     }, 'Starting achievements worker');
     
-    // Initialize database and S3 client
-    createSupabaseClient();
-    createS3Client();
+  // Initialize database and S3 client
+  createPool();
+  createS3Client();
     
     // Create Fastify server for health checks
     const server = fastify({
@@ -78,9 +78,9 @@ async function main(): Promise<void> {
           logger.info('Processing loop stopped');
         }
         
-        // Close database connections
-        await closeSupabaseClient();
-        logger.info('Database connections closed');
+    // Close database connections
+    await closePool();
+    logger.info('Database connections closed');
         
         logger.info('Graceful shutdown complete');
         process.exit(0);

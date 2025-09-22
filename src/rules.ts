@@ -1,4 +1,4 @@
-import { getSupabaseClient, query } from './db.js';
+import { query } from './db.js';
 import { getLogger } from './logger.js';
 import { get, isNumber, isBoolean, isArray, isObject } from './util.js';
 

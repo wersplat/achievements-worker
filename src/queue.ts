@@ -1,4 +1,4 @@
-import { getSupabaseClient } from './db.js';
+import { query, tx } from './db.js';
 import { getEnv } from './env.js';
 import { getLogger } from './logger.js';
 
@@ -23,44 +23,31 @@ export async function claimBatch(): Promise<QueueItem[]> {
   const env = getEnv();
   const logger = getLogger();
   
+  const claimQuery = `
+    WITH cte AS (
+      SELECT id
+      FROM public.event_queue
+      WHERE status = 'queued' AND visible_at <= NOW()
+      ORDER BY id
+      LIMIT $1
+      FOR UPDATE SKIP LOCKED
+    )
+    UPDATE public.event_queue q
+    SET status = 'processing', updated_at = NOW()
+    FROM cte
+    WHERE q.id = cte.id
+    RETURNING q.id, q.event_id;
+  `;
+
   try {
-    // First, get the items to claim
-    const { data: items, error: selectError } = await getSupabaseClient()
-      .from('event_queue')
-      .select('id, event_id')
-      .eq('status', 'queued')
-      .lte('visible_at', new Date().toISOString())
-      .order('id')
-      .limit(env.BATCH_SIZE);
-    
-    if (selectError) {
-      throw new Error(`Failed to select queue items: ${selectError.message}`);
-    }
-    
-    if (!items || items.length === 0) {
-      return [];
-    }
-    
-    // Update the status to 'processing'
-    const ids = items.map(item => item.id);
-    const { error: updateError } = await getSupabaseClient()
-      .from('event_queue')
-      .update({ 
-        status: 'processing', 
-        updated_at: new Date().toISOString() 
-      })
-      .in('id', ids);
-    
-    if (updateError) {
-      throw new Error(`Failed to update queue items: ${updateError.message}`);
-    }
+    const result = await query<QueueItem>(claimQuery, [env.BATCH_SIZE]);
     
     logger.debug({
-      claimed: items.length,
+      claimed: result.rows.length,
       batchSize: env.BATCH_SIZE,
     }, 'Claimed queue batch');
     
-    return items;
+    return result.rows;
   } catch (error) {
     logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to claim queue batch');
     throw error;
@@ -73,24 +60,33 @@ export async function loadEvents(eventIds: string[]): Promise<EventData[]> {
   }
 
   const logger = getLogger();
+  const placeholders = eventIds.map((_, i) => `$${i + 1}`).join(', ');
   
+  const loadQuery = `
+    SELECT 
+      id,
+      event_type,
+      payload,
+      player_id,
+      match_id,
+      season_id,
+      league_id,
+      game_year,
+      occurred_at
+    FROM public.events
+    WHERE id IN (${placeholders})
+    ORDER BY id;
+  `;
+
   try {
-    const { data, error } = await getSupabaseClient()
-      .from('events')
-      .select('id, event_type, payload, player_id, match_id, season_id, league_id, game_year, occurred_at')
-      .in('id', eventIds)
-      .order('id');
-    
-    if (error) {
-      throw new Error(`Failed to load events: ${error.message}`);
-    }
+    const result = await query<EventData>(loadQuery, eventIds);
     
     logger.debug({
       requested: eventIds.length,
-      found: data?.length || 0,
+      found: result.rows.length,
     }, 'Loaded events');
     
-    return data || [];
+    return result.rows;
   } catch (error) {
     logger.error({ 
       error: error instanceof Error ? error.message : String(error),
@@ -106,23 +102,20 @@ export async function markDone(queueIds: number[]): Promise<void> {
   }
 
   const logger = getLogger();
+  const placeholders = queueIds.map((_, i) => `$${i + 1}`).join(', ');
   
+  const updateQuery = `
+    UPDATE public.event_queue
+    SET status = 'done', updated_at = NOW()
+    WHERE id IN (${placeholders});
+  `;
+
   try {
-    const { error } = await getSupabaseClient()
-      .from('event_queue')
-      .update({ 
-        status: 'done', 
-        updated_at: new Date().toISOString() 
-      })
-      .in('id', queueIds);
-    
-    if (error) {
-      throw new Error(`Failed to mark queue items as done: ${error.message}`);
-    }
+    const result = await query(updateQuery, queueIds);
     
     logger.debug({
       queueIds,
-      updated: queueIds.length,
+      updated: result.rowCount,
     }, 'Marked queue items as done');
   } catch (error) {
     logger.error({
@@ -137,36 +130,34 @@ export async function markRetry(queueId: number, errorMessage: string): Promise<
   const env = getEnv();
   const logger = getLogger();
   
-  try {
+  await tx(async (client) => {
     // Get current attempts
-    const { data: queueItem, error: selectError } = await getSupabaseClient()
-      .from('event_queue')
-      .select('attempts')
-      .eq('id', queueId)
-      .single();
+    const getAttemptsQuery = `
+      SELECT attempts FROM public.event_queue WHERE id = $1;
+    `;
     
-    if (selectError || !queueItem) {
+    const attemptsResult = await client.query(getAttemptsQuery, [queueId]);
+    
+    if (attemptsResult.rows.length === 0) {
       throw new Error(`Queue item ${queueId} not found`);
     }
     
-    const currentAttempts = queueItem.attempts || 0;
+    const currentAttempts = attemptsResult.rows[0]?.attempts ?? 0;
     const newAttempts = currentAttempts + 1;
     
     if (newAttempts >= env.MAX_ATTEMPTS) {
       // Mark as error
-      const { error: updateError } = await getSupabaseClient()
-        .from('event_queue')
-        .update({
-          status: 'error',
-          attempts: newAttempts,
-          last_error: errorMessage,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', queueId);
+      const errorQuery = `
+        UPDATE public.event_queue
+        SET 
+          status = 'error',
+          attempts = $2,
+          last_error = $3,
+          updated_at = NOW()
+        WHERE id = $1;
+      `;
       
-      if (updateError) {
-        throw new Error(`Failed to mark queue item as error: ${updateError.message}`);
-      }
+      await client.query(errorQuery, [queueId, newAttempts, errorMessage]);
       
       logger.warn({
         queueId,
@@ -177,23 +168,19 @@ export async function markRetry(queueId: number, errorMessage: string): Promise<
     } else {
       // Schedule retry with exponential backoff
       const backoffMinutes = Math.pow(2, Math.min(newAttempts, 7));
-      const visibleAt = new Date();
-      visibleAt.setMinutes(visibleAt.getMinutes() + backoffMinutes);
       
-      const { error: updateError } = await getSupabaseClient()
-        .from('event_queue')
-        .update({
-          status: 'queued',
-          attempts: newAttempts,
-          last_error: errorMessage,
-          visible_at: visibleAt.toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', queueId);
+      const retryQuery = `
+        UPDATE public.event_queue
+        SET 
+          status = 'queued',
+          attempts = $2,
+          last_error = $3,
+          visible_at = NOW() + INTERVAL '${backoffMinutes} minutes',
+          updated_at = NOW()
+        WHERE id = $1;
+      `;
       
-      if (updateError) {
-        throw new Error(`Failed to schedule queue item retry: ${updateError.message}`);
-      }
+      await client.query(retryQuery, [queueId, newAttempts, errorMessage]);
       
       logger.warn({
         queueId,
@@ -202,28 +189,19 @@ export async function markRetry(queueId: number, errorMessage: string): Promise<
         error: errorMessage,
       }, 'Queue item scheduled for retry');
     }
-  } catch (error) {
-    logger.error({
-      error: error instanceof Error ? error.message : String(error),
-      queueId,
-    }, 'Failed to mark queue item for retry');
-    throw error;
-  }
+  });
 }
 
 export async function getQueueLag(): Promise<number> {
+  const lagQuery = `
+    SELECT COUNT(*) as count
+    FROM public.event_queue
+    WHERE status = 'queued' AND visible_at <= NOW();
+  `;
+
   try {
-    const { count, error } = await getSupabaseClient()
-      .from('event_queue')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'queued')
-      .lte('visible_at', new Date().toISOString());
-    
-    if (error) {
-      throw new Error(`Failed to get queue lag: ${error.message}`);
-    }
-    
-    return count || 0;
+    const result = await query<{ count: string }>(lagQuery);
+    return parseInt(result.rows[0]?.count ?? '0', 10);
   } catch (error) {
     getLogger().error({
       error: error instanceof Error ? error.message : String(error),

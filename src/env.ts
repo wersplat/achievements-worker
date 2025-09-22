@@ -9,8 +9,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(8080),
   
   // Database - Supabase
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_DB_URL: z.string().min(1),
   
   // Cloudflare R2
   R2_ACCOUNT_ID: z.string().min(1),
