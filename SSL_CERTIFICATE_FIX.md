@@ -3,6 +3,7 @@
 ## Issue Identified ✅
 
 Your Railway logs show:
+
 ```
 "error": "self-signed certificate in certificate chain"
 ```
@@ -34,6 +35,7 @@ pool = new Pool({
 ## Security Note
 
 This is safe for Supabase connections because:
+
 - The connection is still encrypted (SSL/TLS)
 - Supabase validates the connection on their end
 - This is a standard practice for managed database services
@@ -47,6 +49,7 @@ This is safe for Supabase connections because:
 ## Expected Success Logs
 
 After the fix, you should see:
+
 ```
 Starting achievements worker
 Health check server started  
@@ -59,11 +62,13 @@ Claimed queue batch: 0  # No database errors
 If you still have issues, you can also try:
 
 1. **Use Supabase Connection Pooling URL**:
+
    ```
    postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require
    ```
 
 2. **Add SSL Mode to Connection String**:
+
    ```
    postgresql://postgres:password@host:5432/postgres?sslmode=require&sslcert=&sslkey=&sslrootcert=
    ```

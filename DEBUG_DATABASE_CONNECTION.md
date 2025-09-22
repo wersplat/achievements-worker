@@ -13,6 +13,7 @@ I've added more detailed error logging to help diagnose the database connection 
 ## 🔧 **What I Added**
 
 ### 1. **Enhanced Error Logging**
+
 ```typescript
 logger.error({
   query: text,
@@ -25,6 +26,7 @@ logger.error({
 ```
 
 ### 2. **Connection Test**
+
 ```typescript
 // Test the connection immediately
 pool.query('SELECT 1 as test')
@@ -51,6 +53,7 @@ pool.query('SELECT 1 as test')
 ## 🔍 **What to Look For**
 
 The enhanced logging will show:
+
 - **Exact error message** from the database
 - **Error stack trace** for debugging
 - **Error name** (e.g., "ECONNREFUSED", "ENOTFOUND", etc.)
@@ -70,12 +73,14 @@ Based on the symptoms, the issue might be:
 After the enhanced logging, you should see either:
 
 **✅ Success:**
+
 ```
 Database connection test successful
 Database query executed
 ```
 
 **❌ Failure:**
+
 ```
 Database connection test failed
 Error: [detailed error message]

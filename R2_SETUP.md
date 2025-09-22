@@ -34,6 +34,7 @@ R2_PUBLIC_BASE_URL=https://773fabe537380d65f5647dcbd32cd292.r2.cloudflarestorage
    - Copy the Access Key ID and Secret Access Key
 
 2. **Create/Verify Bucket:**
+
    ```bash
    # The worker expects a bucket named "badges"
    # Create it in your Cloudflare R2 dashboard if it doesn't exist
@@ -46,6 +47,7 @@ R2_PUBLIC_BASE_URL=https://773fabe537380d65f5647dcbd32cd292.r2.cloudflarestorage
    - Example: `R2_PUBLIC_BASE_URL=https://badges.yourdomain.com`
 
 4. **Test the Configuration:**
+
    ```bash
    cp .env.example .env
    # Edit .env with your actual credentials
@@ -56,11 +58,13 @@ R2_PUBLIC_BASE_URL=https://773fabe537380d65f5647dcbd32cd292.r2.cloudflarestorage
 ## Badge URL Structure
 
 The worker will generate badges at:
+
 ```
 {R2_PUBLIC_BASE_URL}/badges/{player_id}/{award_id}.svg
 ```
 
 Example:
+
 ```
 https://773fabe537380d65f5647dcbd32cd292.r2.cloudflarestorage.com/badges/badges/123/456.svg
 ```
@@ -75,8 +79,9 @@ https://773fabe537380d65f5647dcbd32cd292.r2.cloudflarestorage.com/badges/badges/
 ## Railway Deployment
 
 When deploying to Railway, set these environment variables in the Railway dashboard:
+
 - `R2_ACCOUNT_ID`
-- `R2_ACCESS_KEY_ID` 
+- `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 - `R2_BUCKET`
 - `R2_ENDPOINT`

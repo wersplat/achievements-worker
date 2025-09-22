@@ -1,6 +1,7 @@
 # Railway SSL Certificate Solution
 
 ## 🚨 Current Issue
+
 Railway is still showing "self-signed certificate in certificate chain" errors despite the SSL fix.
 
 ## 🎯 **IMMEDIATE SOLUTION**
@@ -14,6 +15,7 @@ SUPABASE_DB_URL=postgresql://postgres.qwpxsufrgigpjcxtnery:6d9465b23f86855304c71
 ```
 
 **Key differences:**
+
 - `postgres.PROJECT_REF` instead of `postgres`
 - Port `6543` (pooling) instead of `5432` (direct)
 - `aws-0-us-east-1.pooler.supabase.com` hostname
@@ -40,6 +42,7 @@ SUPABASE_DB_URL=postgresql://postgres:6d9465b23f86855304c712c2393c5f867fa83165c0
 ## ✅ **Expected Success Logs**
 
 After the fix, you should see:
+
 ```
 Starting achievements worker
 Health check server started
@@ -50,11 +53,13 @@ Claimed queue batch: 0  # No more SSL errors!
 ## 🧪 **Test Your Fix**
 
 Once working, test the health endpoint:
+
 ```bash
 curl https://your-railway-app.railway.app/healthz
 ```
 
 Should return:
+
 ```json
 {
   "status": "ok",
@@ -73,6 +78,7 @@ Should return:
 ## 📋 **Code Changes Made**
 
 The codebase has been updated with:
+
 1. **SSL configuration** in `src/db.ts`
 2. **Connection string parsing** to add SSL parameters
 3. **Multiple fallback approaches** for SSL handling
@@ -80,6 +86,7 @@ The codebase has been updated with:
 ## 🚀 **Next Steps After Fix**
 
 Once the database connection works:
+
 1. **Add your R2 credentials** to Railway environment variables
 2. **Test with sample events** in your Supabase `public.event_queue` table
 3. **Monitor badge generation** in your R2 bucket

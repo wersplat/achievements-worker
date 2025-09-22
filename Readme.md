@@ -17,16 +17,19 @@ A production-ready achievements worker service for Railway that processes Supaba
 ## Quick Start
 
 1. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 2. **Copy environment template**:
+
    ```bash
    cp .env.example .env
    ```
 
 3. **Configure environment variables** in `.env`:
+
    ```bash
    SUPABASE_DB_URL=postgresql://postgres:password@host:5432/postgres?sslmode=require
    R2_ACCOUNT_ID=your_r2_account_id
@@ -38,6 +41,7 @@ A production-ready achievements worker service for Railway that processes Supaba
    ```
 
 4. **Build and start**:
+
    ```bash
    npm run build
    npm start
@@ -69,6 +73,7 @@ npm run dev
 ## Database Schema
 
 The worker expects these tables to exist:
+
 - `public.events` - Source events
 - `public.event_queue` - Processing queue
 - `public.player_counters` - Player statistics
@@ -86,12 +91,14 @@ Achievement rules use JsonLogic-style predicates:
 ```
 
 Supported operations:
+
 - Comparisons: `>=`, `>`, `<=`, `<`, `==`, `!=`
 - Logic: `and`, `or`, `not`
 - Arithmetic: `+`, `-`, `*`, `/`
 - Object: `has`
 
 Context paths:
+
 - `per_game.*` - Current game stats
 - `season.*` - Season totals
 - `career.*` - Career totals
@@ -136,4 +143,3 @@ Event Queue → Worker → [Counters, Rules, Awards] → Badge SVG → R2
 ```
 
 The worker processes events in batches, updates player statistics, evaluates achievement rules, and generates visual badges for earned achievements.
-

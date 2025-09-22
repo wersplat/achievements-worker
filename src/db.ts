@@ -16,12 +16,12 @@ export function createPool(): Pool {
   
   pool = new Pool({
     connectionString: env.SUPABASE_DB_URL,
-    max: 20,
+    keepAlive: true,
+    max: 5,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-    ssl: {
-      rejectUnauthorized: false
-    }
+    connectionTimeoutMillis: 5000,
+    statement_timeout: 30000,
+    ssl: { rejectUnauthorized: true }
   });
 
   // Test the connection

@@ -3,6 +3,7 @@
 ## 🚨 **HOSTNAME RESOLUTION ERROR IDENTIFIED**
 
 Your Railway logs show:
+
 ```
 "getaddrinfo ENOTFOUND db.aws-0-us-east-1.supabase.co"
 ```
@@ -12,6 +13,7 @@ This is a **hostname resolution failure** - the conversion logic was incorrectly
 ## 🔧 **What I Fixed**
 
 ### 1. **Removed Incorrect Hostname Conversion**
+
 ```typescript
 // BEFORE (incorrect):
 if (connectionUrl.hostname.includes('pooler')) {
@@ -25,6 +27,7 @@ const connectionUrl = new URL(env.SUPABASE_DB_URL);
 ```
 
 ### 2. **Why This Happens**
+
 - **Pooling URLs** like `aws-0-us-east-1.pooler.supabase.com` have region identifiers, not project refs
 - **Project Reference** is in the username: `postgres.qwpxsufrgigpjcxtnery`
 - **Direct Connection** should use the original URL format you provided
@@ -35,6 +38,7 @@ const connectionUrl = new URL(env.SUPABASE_DB_URL);
 After this fix, you should see:
 
 ✅ **Success Messages:**
+
 ```
 Starting achievements worker
 Health check server started
@@ -44,6 +48,7 @@ Claimed queue batch: 0  # No more hostname errors!
 ```
 
 ❌ **No More Errors:**
+
 - No more `getaddrinfo ENOTFOUND` errors
 - No more `Database query failed` messages
 - No more `Failed to claim queue batch` errors
@@ -65,11 +70,13 @@ Claimed queue batch: 0  # No more hostname errors!
 ## 🧪 **Test Your Fix**
 
 Once working, test the health endpoint:
+
 ```bash
 curl https://your-railway-app.railway.app/healthz
 ```
 
 Should return:
+
 ```json
 {
   "status": "ok",
@@ -94,6 +101,7 @@ The hostname resolution error should be completely resolved.
 ## 📋 **Connection String Format**
 
 Your connection string should remain:
+
 ```
 postgresql://postgres.qwpxsufrgigpjcxtnery:6d9465b23f86855304c712c2393c5f867fa83165c0c49769fef74d363a9b8cc1@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require
 ```

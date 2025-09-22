@@ -3,6 +3,7 @@
 ## 🚨 **SASL AUTHENTICATION ERROR IDENTIFIED**
 
 Your Railway logs show:
+
 ```
 "SASL: SCRAM-SERVER-FINAL-MESSAGE: server signature is missing"
 ```
@@ -12,6 +13,7 @@ This is a **SASL authentication failure** - different from SSL certificate issue
 ## 🔧 **What I Fixed**
 
 ### 1. **Convert Pooling URL to Direct Connection**
+
 ```typescript
 // Remove pooling parameters if present
 if (connectionUrl.hostname.includes('pooler')) {
@@ -23,6 +25,7 @@ if (connectionUrl.hostname.includes('pooler')) {
 ```
 
 ### 2. **Why This Happens**
+
 - **Connection Pooling URLs** use different authentication methods
 - **SASL SCRAM** authentication can fail with pooling services
 - **Direct connections** to `db.PROJECT_REF.supabase.co:5432` are more reliable
@@ -33,6 +36,7 @@ if (connectionUrl.hostname.includes('pooler')) {
 After this fix, you should see:
 
 ✅ **Success Messages:**
+
 ```
 Starting achievements worker
 Health check server started
@@ -42,6 +46,7 @@ Claimed queue batch: 0  # No more SASL errors!
 ```
 
 ❌ **No More Errors:**
+
 - No more `SASL: SCRAM-SERVER-FINAL-MESSAGE` errors
 - No more `Database query failed` messages
 - No more `Failed to claim queue batch` errors
@@ -63,11 +68,13 @@ Claimed queue batch: 0  # No more SASL errors!
 ## 🧪 **Test Your Fix**
 
 Once working, test the health endpoint:
+
 ```bash
 curl https://your-railway-app.railway.app/healthz
 ```
 
 Should return:
+
 ```json
 {
   "status": "ok",

@@ -7,12 +7,14 @@ Since you're already using the connection pooling URL but still getting SSL cert
 ## 🔧 **What Was Changed**
 
 ### 1. **Global SSL Bypass**
+
 ```typescript
 // Disable SSL certificate verification globally
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 ```
 
 ### 2. **Enhanced SSL Configuration**
+
 ```typescript
 ssl: {
   rejectUnauthorized: false, // Allow self-signed certificates
@@ -22,6 +24,7 @@ ssl: {
 ```
 
 ### 3. **Connection String SSL Parameters**
+
 ```typescript
 connectionUrl.searchParams.set('sslmode', 'require');
 connectionUrl.searchParams.set('sslcert', '');
@@ -46,6 +49,7 @@ connectionUrl.searchParams.set('sslrootcert', '');
 ## ✅ **Expected Success Logs**
 
 After the fix, you should see:
+
 ```
 Starting achievements worker
 Health check server started
@@ -56,11 +60,13 @@ Claimed queue batch: 0  # No more SSL errors!
 ## 🧪 **Test Your Fix**
 
 Once working, test the health endpoint:
+
 ```bash
 curl https://your-railway-app.railway.app/healthz
 ```
 
 Should return:
+
 ```json
 {
   "status": "ok",
@@ -79,6 +85,7 @@ Should return:
 ## ⚠️ **Security Note**
 
 This approach disables SSL certificate verification, which is acceptable for:
+
 - ✅ **Managed database services** like Supabase
 - ✅ **Encrypted connections** (still uses SSL/TLS)
 - ✅ **Production environments** with trusted providers

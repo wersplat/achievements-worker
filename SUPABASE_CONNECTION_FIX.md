@@ -1,6 +1,7 @@
 # Supabase Connection Fix - Alternative Solutions
 
 ## Current Issue
+
 Railway is still getting "self-signed certificate in certificate chain" errors even after the SSL fix.
 
 ## Solution 1: Use Supabase Connection Pooling URL
@@ -12,6 +13,7 @@ SUPABASE_DB_URL=postgresql://postgres.qwpxsufrgigpjcxtnery:6d9465b23f86855304c71
 ```
 
 **Key changes:**
+
 - Uses `postgres.PROJECT_REF` format
 - Uses port `6543` (pooling port)
 - Uses `aws-0-us-east-1.pooler.supabase.com` hostname
@@ -42,6 +44,7 @@ SUPABASE_DB_URL=postgresql://postgres:6d9465b23f86855304c712c2393c5f867fa83165c0
 ## Expected Success
 
 After the fix, you should see:
+
 ```
 Starting achievements worker
 Health check server started

@@ -3,6 +3,7 @@
 ## Database Connection String ✅
 
 Your correct Supabase connection string:
+
 ```
 postgresql://postgres:6d9465b23f86855304c712c2393c5f867fa83165c0c49769fef74d363a9b8cc1@db.qwpxsufrgigpjcxtnery.supabase.co:5432/postgres?sslmode=require
 ```
@@ -12,11 +13,13 @@ postgresql://postgres:6d9465b23f86855304c712c2393c5f867fa83165c0c49769fef74d363a
 Set these in your Railway dashboard (Service → Variables):
 
 ### Database
+
 ```bash
 SUPABASE_DB_URL=postgresql://postgres:6d9465b23f86855304c712c2393c5f867fa83165c0c49769fef74d363a9b8cc1@db.qwpxsufrgigpjcxtnery.supabase.co:5432/postgres?sslmode=require
 ```
 
 ### R2 Configuration
+
 ```bash
 R2_ACCOUNT_ID=773fabe537380d65f5647dcbd32cd292
 R2_ACCESS_KEY_ID=your_r2_access_key_here
@@ -27,6 +30,7 @@ R2_PUBLIC_BASE_URL=https://773fabe537380d65f5647dcbd32cd292.r2.cloudflarestorage
 ```
 
 ### Optional (Defaults)
+
 ```bash
 NODE_ENV=production
 PORT=8080
@@ -49,6 +53,7 @@ MAX_ATTEMPTS=10
 After updating the environment variables, your logs should show:
 
 ✅ **Success Messages:**
+
 ```
 Starting achievements worker
 Health check server started
@@ -57,6 +62,7 @@ Claimed queue batch: 0  # No errors, just no events to process
 ```
 
 ❌ **No More Errors:**
+
 - No more `ENETUNREACH` errors
 - No more `self-signed certificate in certificate chain` errors
 - No more `Database query failed` messages
@@ -64,6 +70,7 @@ Claimed queue batch: 0  # No errors, just no events to process
 ## SSL Certificate Fix
 
 The worker has been updated to handle Supabase's SSL certificates properly. The database connection now includes:
+
 ```typescript
 ssl: {
   rejectUnauthorized: false, // Allow self-signed certificates for Supabase
@@ -73,11 +80,13 @@ ssl: {
 ## Test Health Endpoint
 
 Once fixed, test your health endpoint:
+
 ```bash
 curl https://your-railway-app.railway.app/healthz
 ```
 
 Should return:
+
 ```json
 {
   "status": "ok",
@@ -89,6 +98,7 @@ Should return:
 ## Next Steps
 
 Once the database connection is working:
+
 1. **Add events to your Supabase `public.event_queue` table**
 2. **Worker will automatically process them**
 3. **Badges will be generated and uploaded to R2**
