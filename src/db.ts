@@ -1,70 +1,82 @@
-import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { Pool, QueryResultRow } from 'pg';
 import { getEnv } from './env.js';
 import { getLogger } from './logger.js';
 
+let supabase: SupabaseClient;
 let pool: Pool;
 
-export function createPool(): Pool {
-  if (pool) {
-    return pool;
+export function createSupabaseClient(): SupabaseClient {
+  if (supabase) {
+    return supabase;
   }
 
   const env = getEnv();
   const logger = getLogger();
   
-  // Disable SSL certificate verification for Railway + Supabase
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  logger.info('Creating Supabase client');
+  
+  supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
 
-  // Use the connection string exactly as provided in environment
-  const connectionString = env.SUPABASE_DB_URL;
-  logger.info(`Using connection string: ${connectionString.replace(/:[^:@]*@/, ':****@')}`); // Hide password
+  // Also create a PostgreSQL pool using Supabase's connection string
+  const connectionString = `postgresql://postgres:${env.SUPABASE_SERVICE_ROLE_KEY}@${env.SUPABASE_URL.replace('https://', '').replace('.supabase.co', '')}.supabase.co:5432/postgres?sslmode=require`;
+  
+  logger.info('Creating PostgreSQL pool from Supabase connection');
   
   pool = new Pool({
-    connectionString: connectionString,
+    connectionString,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
     ssl: {
-      rejectUnauthorized: false, // Allow self-signed certificates for Supabase
-      checkServerIdentity: () => undefined, // Disable hostname verification
-      secureProtocol: 'TLSv1_2_method', // Force TLS 1.2
+      rejectUnauthorized: false,
     },
   });
 
-  pool.on('error', (err) => {
-    logger.error({ err }, 'Database pool error');
-  });
-
-  pool.on('connect', (client) => {
-    logger.debug('New database connection established');
-  });
-
-  // Test the connection immediately
+  // Test the connection
   pool.query('SELECT 1 as test')
     .then(() => {
-      logger.info('Database connection test successful');
+      logger.info('Supabase PostgreSQL connection test successful');
     })
     .catch((err) => {
       logger.error({
         error: err instanceof Error ? err.message : String(err),
         errorStack: err instanceof Error ? err.stack : undefined,
-      }, 'Database connection test failed');
+      }, 'Supabase PostgreSQL connection test failed');
     });
 
-  return pool;
+  return supabase;
+}
+
+export function getSupabaseClient(): SupabaseClient {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Call createSupabaseClient() first.');
+  }
+  return supabase;
 }
 
 export function getPool(): Pool {
   if (!pool) {
-    throw new Error('Database pool not initialized. Call createPool() first.');
+    throw new Error('PostgreSQL pool not initialized. Call createSupabaseClient() first.');
   }
   return pool;
 }
 
+// Export both clients
+export function getClient() {
+  return getSupabaseClient();
+}
+
+// Raw SQL query function using PostgreSQL pool
 export async function query<T extends QueryResultRow = any>(
   text: string,
   params?: unknown[]
-): Promise<QueryResult<T>> {
+): Promise<{ rows: T[]; rowCount: number }> {
   const logger = getLogger();
   const start = Date.now();
   
@@ -79,7 +91,7 @@ export async function query<T extends QueryResultRow = any>(
       rowCount: result.rowCount,
     }, 'Database query executed');
     
-    return result;
+    return { rows: result.rows, rowCount: result.rowCount || 0 };
   } catch (error) {
     const duration = Date.now() - start;
     logger.error({
@@ -94,8 +106,9 @@ export async function query<T extends QueryResultRow = any>(
   }
 }
 
+// Transaction support
 export async function tx<T>(
-  callback: (client: PoolClient) => Promise<T>
+  callback: (client: any) => Promise<T>
 ): Promise<T> {
   const logger = getLogger();
   const client = await getPool().connect();
@@ -119,9 +132,9 @@ export async function tx<T>(
   }
 }
 
-export async function closePool(): Promise<void> {
+export async function closeSupabaseClient(): Promise<void> {
   if (pool) {
     await pool.end();
-    getLogger().info('Database pool closed');
+    getLogger().info('Supabase PostgreSQL pool closed');
   }
 }

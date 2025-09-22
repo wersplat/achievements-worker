@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { loadEnv, getEnv } from './env.js';
 import { createLogger, getLogger } from './logger.js';
-import { createPool, closePool } from './db.js';
+import { createSupabaseClient, closeSupabaseClient } from './db.js';
 import { createS3Client } from './svg.js';
 import { claimBatch, loadEvents, markDone, markRetry, getQueueLag, EventData } from './queue.js';
 import { updateCareerCounters, updateSeasonCounters, fetchPlayerCounters, PerGameStats } from './counters.js';
@@ -30,7 +30,7 @@ async function main(): Promise<void> {
     }, 'Starting achievements worker');
     
     // Initialize database and S3 client
-    createPool();
+    createSupabaseClient();
     createS3Client();
     
     // Create Fastify server for health checks
@@ -79,7 +79,7 @@ async function main(): Promise<void> {
         }
         
         // Close database connections
-        await closePool();
+        await closeSupabaseClient();
         logger.info('Database connections closed');
         
         logger.info('Graceful shutdown complete');
