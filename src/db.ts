@@ -11,6 +11,9 @@ export function createPool(): Pool {
 
   const env = getEnv();
   const logger = getLogger();
+  
+  // Disable SSL certificate verification for Railway + Supabase
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
   // Parse connection string and add SSL parameters
   const connectionUrl = new URL(env.SUPABASE_DB_URL);
@@ -26,6 +29,8 @@ export function createPool(): Pool {
     connectionTimeoutMillis: 2000,
     ssl: {
       rejectUnauthorized: false, // Allow self-signed certificates for Supabase
+      checkServerIdentity: () => undefined, // Disable hostname verification
+      secureProtocol: 'TLSv1_2_method', // Force TLS 1.2
     },
   });
 
