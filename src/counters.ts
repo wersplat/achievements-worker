@@ -1,4 +1,4 @@
-import { query } from './db.js';
+import { getSupabaseClient, query } from './db.js';
 import { getLogger } from './logger.js';
 
 export interface PerGameStats extends Record<string, unknown> {
@@ -18,9 +18,9 @@ export interface PerGameStats extends Record<string, unknown> {
 }
 
 export interface PlayerCounters extends Record<string, unknown> {
-  player_id: number;
+  player_id: string;
   scope: 'career' | 'season';
-  season_id?: number;
+  season_id?: string;
   
   // Totals
   games_played: number;
@@ -71,7 +71,7 @@ function detectAchievementFlags(stats: PerGameStats): {
 }
 
 export async function updateCareerCounters(
-  playerId: number,
+  playerId: string,
   stats: PerGameStats
 ): Promise<void> {
   const logger = getLogger();
@@ -160,8 +160,8 @@ export async function updateCareerCounters(
 }
 
 export async function updateSeasonCounters(
-  playerId: number,
-  seasonId: number,
+  playerId: string,
+  seasonId: string,
   stats: PerGameStats
 ): Promise<void> {
   const logger = getLogger();
@@ -253,8 +253,8 @@ export async function updateSeasonCounters(
 }
 
 export async function fetchPlayerCounters(
-  playerId: number,
-  seasonId?: number
+  playerId: string,
+  seasonId?: string
 ): Promise<{
   career: PlayerCounters | undefined;
   season: PlayerCounters | undefined;

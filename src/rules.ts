@@ -1,17 +1,17 @@
-import { query } from './db.js';
+import { getSupabaseClient, query } from './db.js';
 import { getLogger } from './logger.js';
 import { get, isNumber, isBoolean, isArray, isObject } from './util.js';
 
 export interface AchievementRule {
-  id: number;
+  id: string;
   title: string;
   description: string;
   predicate: Record<string, unknown>;
   scope: 'per_game' | 'season' | 'career';
   tier: string;
-  game_year?: number;
-  league_id?: number;
-  season_id?: number;
+  game_year?: string;
+  league_id?: string;
+  season_id?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -24,9 +24,9 @@ export interface EvaluationContext {
 }
 
 export async function fetchCandidateRules(
-  gameYear?: number,
-  leagueId?: number,
-  seasonId?: number
+  gameYear?: string,
+  leagueId?: string,
+  seasonId?: string
 ): Promise<AchievementRule[]> {
   const logger = getLogger();
   

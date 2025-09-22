@@ -1,20 +1,20 @@
-import { query } from './db.js';
+import { getSupabaseClient, query } from './db.js';
 import { getLogger } from './logger.js';
 import { canonicalJson } from './util.js';
 import { AchievementRule } from './rules.js';
 
 export interface PlayerAward {
-  id: number;
-  rule_id: number;
-  player_id: number;
+  id: string;
+  rule_id: string;
+  player_id: string;
   scope_key?: string | undefined;
   level: number;
   title: string;
   tier: string;
-  game_year?: number | undefined;
-  league_id?: number | undefined;
-  season_id?: number | undefined;
-  match_id?: number | undefined;
+  game_year?: string | undefined;
+  league_id?: string | undefined;
+  season_id?: string | undefined;
+  match_id?: string | undefined;
   awarded_at: string;
   stats: Record<string, unknown>;
   issuer: string;
@@ -25,20 +25,20 @@ export interface PlayerAward {
 }
 
 export interface AwardInsertData {
-  rule_id: number;
-  player_id: number;
+  rule_id: string;
+  player_id: string;
   scope_key?: string | undefined;
   level: number;
   title: string;
   tier: string;
-  game_year?: number | undefined;
-  league_id?: number | undefined;
-  season_id?: number | undefined;
-  match_id?: number | undefined;
+  game_year?: string | undefined;
+  league_id?: string | undefined;
+  season_id?: string | undefined;
+  match_id?: string | undefined;
   stats: Record<string, unknown>;
 }
 
-export async function insertAward(data: AwardInsertData): Promise<number | null> {
+export async function insertAward(data: AwardInsertData): Promise<string | null> {
   const logger = getLogger();
   
   const insertQuery = `
@@ -72,7 +72,7 @@ export async function insertAward(data: AwardInsertData): Promise<number | null>
   ];
 
   try {
-    const result = await query<{ id: number }>(insertQuery, params);
+    const result = await query<{ id: string }>(insertQuery, params);
     
     const awardId = result.rows[0]?.id ?? null;
     
@@ -106,7 +106,7 @@ export async function insertAward(data: AwardInsertData): Promise<number | null>
   }
 }
 
-export async function attachAssetUrl(awardId: number, assetUrl: string): Promise<void> {
+export async function attachAssetUrl(awardId: string, assetUrl: string): Promise<void> {
   const logger = getLogger();
   
   const updateQuery = `
@@ -138,14 +138,14 @@ export async function attachAssetUrl(awardId: number, assetUrl: string): Promise
 
 export function determineScopeKey(
   rule: AchievementRule,
-  matchId?: number,
-  seasonId?: number
+  matchId?: string,
+  seasonId?: string
 ): string | undefined {
   switch (rule.scope) {
     case 'per_game':
-      return matchId ? String(matchId) : undefined;
+      return matchId;
     case 'season':
-      return seasonId ? String(seasonId) : undefined;
+      return seasonId;
     case 'career':
       return undefined;
     default:
