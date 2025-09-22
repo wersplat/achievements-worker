@@ -42,6 +42,18 @@ export function createPool(): Pool {
     logger.debug('New database connection established');
   });
 
+  // Test the connection immediately
+  pool.query('SELECT 1 as test')
+    .then(() => {
+      logger.info('Database connection test successful');
+    })
+    .catch((err) => {
+      logger.error({
+        error: err instanceof Error ? err.message : String(err),
+        errorStack: err instanceof Error ? err.stack : undefined,
+      }, 'Database connection test failed');
+    });
+
   return pool;
 }
 
@@ -78,6 +90,8 @@ export async function query<T extends QueryResultRow = any>(
       params,
       duration,
       error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      errorName: error instanceof Error ? error.name : undefined,
     }, 'Database query failed');
     throw error;
   }
