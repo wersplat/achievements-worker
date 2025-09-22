@@ -1,0 +1,33 @@
+{
+  "name": "achievements-worker",
+  "version": "1.0.0",
+  "description": "Production-ready achievements worker for Railway that processes Supabase events and generates badge SVGs",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["achievements", "worker", "supabase", "railway", "badges"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.11.3",
+    "zod": "^3.22.4",
+    "fastify": "^4.24.3",
+    "pino": "^8.16.2",
+    "@aws-sdk/client-s3": "^3.451.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "ts-node": "^10.9.1",
+    "@types/node": "^20.8.9",
+    "@types/pg": "^8.10.7",
+    "@types/uuid": "^9.0.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
